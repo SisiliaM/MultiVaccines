@@ -1,0 +1,117 @@
+---
+title: "virus2"
+output: html_document
+date: '2022-06-28'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r include=FALSE}
+require(tidyverse)
+require(tigerstats)
+require(knitr)
+newdata<- read.csv(file="clinicalTrial.csv")
+```
+
+```{r eval=FALSE}
+newdata <- newdata %>%
+mutate(across(where(is.character), as.factor))
+```
+
+```{r}
+barchartGC(~infected + vaxStatus,data=newdata)
+barchartGC(~infected + vaxStatus,data=newdata, type="percent")
+
+```
+
+Looking at the barchart with the percentage you can see by getting the first vaccine and the new one together has done a better job at preventing people from getting infected. You can also see that majority of the people who did get infected were not vaccinated at all.
+
+```{r}
+table1 <- xtabs(~infected + vaxStatus, data=newdata)
+rowPerc(table1)
+colPerc(table1)
+```
+
+Looking at the nummerical summary you can see that out of the peopple that were infected 56.84% were not vaccinated, 11.54% only had the new vaccine, 5.13% had gotten the first and new vaccine, and 26.50% only got the first vaccine. This shows us that taking the shots do actually help. 
+
+```{r}
+chisq.test(table1)
+chisqtestGC(table1)
+fisher.test(table1,simulate.p.value=TRUE)
+```
+
+multiple categories so we will run the fisherXY test.
+
+```{r}
+fisherXY = function(x, y, confL = 0, printAll=FALSE){
+  # Inputs: 
+  #   x: factor variable, 2 levels
+  #   y: factor variable, n levels
+  # confL: confidence level, default = 0.95
+  #        print only those tables, results if p-value < (1-confL)
+  # printAll: overide the 'print only if p-value < (1-confL), and
+  #           print all tables and fisher test results
+  #
+  # Constraint:
+  #   x and y must be same length
+  #
+  # Outputs:
+  #   All 2x2 Fisher exact tests
+  
+  if(confL<0 || confL> 1){
+    print('error: confL must be between 0 and 1')
+    return(999)
+  }
+  
+  if(!is.factor(x)) x=as.factor(x)
+  if(!is.factor(y)) y=as.factor(y)
+  
+  fisherTable = as.matrix(table(x, y))
+  cat('\ncontingency table:\n')
+  print(fisherTable)
+  cat('\n***All 2X2 tests****\n\n')
+
+  # all 2x2 tests
+  levelsY = levels(y)
+  levelsX = levels(x)
+  
+  m = length(levelsX)
+  n = length(levelsY)
+  
+  confLevel = 0.95
+  if (confL !=0 ) confLevel=confL
+  
+  for (i in 1:(m-1))
+       for(j in ((i+1):m))
+          for (k in 1:(n-1))
+             for (l in ((k+1):n)) {
+                
+                 fisherIndexX = c(i,j)
+                 fisherIndexY = c(k,l)
+                 
+                 fTempTable = as.matrix(fisherTable[fisherIndexX,
+                                        fisherIndexY])
+                 
+                 fisherTest=fisher.test(fTempTable, conf.int = TRUE, 
+                              conf.level = confLevel)
+                 
+                 if((fisherTest$p.value < (1-confLevel) ) || printAll){
+                   
+                       print(c(levelsX[i], levelsX[j]))
+                       print(c(levelsY[k], levelsY[l]))
+                       print(fTempTable)
+                       print(fisherTest)
+                       cat('\n')
+                 }
+                 
+        }
+}
+
+```
+```{r}
+fisherXY(newdata$infected,newdata$vaxStatus,printAll = TRUE)
+```
+
+The fisherXY test shows that there is a difference between every single category and none had no difference.  
